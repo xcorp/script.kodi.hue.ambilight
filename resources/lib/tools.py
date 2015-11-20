@@ -101,7 +101,7 @@ class Light:
     self.valLast = state['bri']
     
     modelid = j['modelid']
-    self.fullSpectrum = ((modelid == 'LST001') or (modelid == 'LLC007'))
+    self.fullSpectrum = ((modelid == 'LST001') or (modelid == 'LST002') or (modelid == 'LLC007'))
 
     if state.has_key('hue'):
       self.start_setting['hue'] = state['hue']
