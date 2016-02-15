@@ -431,6 +431,11 @@ def run():
 
       startReadOut = False
       vals = {}
+      ## live tv does not trigger playbackstart
+      if player.isPlayingVideo() and not player.playingvideo:
+        player.playingvideo = True
+        state_changed("started", player.getTotalTime())
+        continue
       if player.playingvideo:
         if useLegacyApi:
           capture.waitForCaptureStateChangeEvent(1000/60)
