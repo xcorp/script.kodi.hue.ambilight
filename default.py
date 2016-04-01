@@ -482,7 +482,7 @@ def state_changed(state, duration):
 
   #detect pause for refresh change
   pauseafterrefreshchange = 0
-  response = json.loads(xbmc.executeJSONRPC('{"jsonrpc":"2.0","method":"Settings.GetSettingValue", "params":{"setting":"videoplayer.pauseafterrefreshchange"},"id":1}'))
+  response = json.loads(xbmc.executeJSONRPC('{"jsonrpc":"2.0","method":"Settings.GetSettingValue", "params":{"setting":"videoscreen.delayrefreshchange"},"id":1}'))
   #logger.debuglog(isinstance(response, dict))
   if "result" in response and "value" in response["result"]:
     pauseafterrefreshchange = int(response["result"]["value"])
