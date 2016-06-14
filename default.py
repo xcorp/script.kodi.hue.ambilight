@@ -27,6 +27,7 @@ except ImportError:
 xbmc.log("Kodi Hue service started, version: %s" % get_version())
 
 capture = xbmc.RenderCapture()
+useLegacyApi = True
 fmt = capture.getImageFormat()
 # BGRA or RGBA
 # xbmc.log("Hue Capture Image format: %s" % fmt)
@@ -399,8 +400,9 @@ class Screenshot:
             spectrum[h] = 1 # tmps * 2 * tmpv
             saturation[h] = tmps
             value[h] = tmpv
-
-    overall_value = v / float(i)
+    overall_value = 1
+    if int(i) != 0:
+      overall_value = v / float(i)
     # s_overall = int(s * 100 / i)
     return self.most_used_spectrum(spectrum, saturation, value, size, overall_value)
 
@@ -427,10 +429,28 @@ def run():
       else:
         xbmc.sleep(100)
 
-      capture.waitForCaptureStateChangeEvent(1000/60)
-      if capture.getCaptureState() == xbmc.CAPTURE_STATE_DONE:
-        if player.playingvideo:
-          screen = Screenshot(capture.getImage(), capture.getWidth(), capture.getHeight())
+      startReadOut = False
+      vals = {}
+      ## live tv does not trigger playbackstart
+      if player.isPlayingVideo() and not player.playingvideo:
+        player.playingvideo = True
+        state_changed("started", player.getTotalTime())
+        continue
+      if player.playingvideo:
+        if useLegacyApi:
+          capture.waitForCaptureStateChangeEvent(1000/60)
+          if capture.getCaptureState() == xbmc.CAPTURE_STATE_DONE and player.playingvideo:
+            startReadOut = True
+        else:
+          vals = capture.getImage(1000/60)
+          if len(vals) > 0 and player.playingvideo:
+            startReadOut = True
+        if startReadOut:
+          if useLegacyApi:
+            vals = capture.getImage()
+            screen = Screenshot(vals, capture.getWidth(), capture.getHeight())
+          else:
+            screen = Screenshot(vals, capture.getWidth(), capture.getHeight())
           hsvRatios = screen.spectrum_hsv(screen.pixels, screen.capture_width, screen.capture_height)
           if hue.settings.light == 0:
             fade_light_hsv(hue.light, hsvRatios[0])
@@ -462,7 +482,7 @@ def state_changed(state, duration):
 
   #detect pause for refresh change
   pauseafterrefreshchange = 0
-  response = json.loads(xbmc.executeJSONRPC('{"jsonrpc":"2.0","method":"Settings.GetSettingValue", "params":{"setting":"videoplayer.pauseafterrefreshchange"},"id":1}'))
+  response = json.loads(xbmc.executeJSONRPC('{"jsonrpc":"2.0","method":"Settings.GetSettingValue", "params":{"setting":"videoscreen.delayrefreshchange"},"id":1}'))
   #logger.debuglog(isinstance(response, dict))
   if "result" in response and "value" in response["result"]:
     pauseafterrefreshchange = int(response["result"]["value"])
@@ -490,7 +510,10 @@ def state_changed(state, duration):
       capture_width = 32 #100
       capture_height = int(capture_width / capture.getAspectRatio())
       logger.debuglog("capture %s x %s" % (capture_width, capture_height))
-      capture.capture(capture_width, capture_height, xbmc.CAPTURE_FLAG_CONTINUOUS)
+      if useLegacyApi:
+        capture.capture(capture_width, capture_height, xbmc.CAPTURE_FLAG_CONTINUOUS)
+      else:
+        capture.capture(capture_width, capture_height)
 
   if (state == "started" and pauseafterrefreshchange == 0) or state == "resumed":
     if hue.settings.mode == 0 and hue.settings.ambilight_dim: # only if a complete group
@@ -522,6 +545,10 @@ def state_changed(state, duration):
       hue.brighter_lights()
 
 if ( __name__ == "__main__" ):
+  try:
+    capture.getCaptureState()
+  except AttributeError:
+    useLegacyApi = False
   settings = settings()
   logger = Logger()
   if settings.debug == True:
